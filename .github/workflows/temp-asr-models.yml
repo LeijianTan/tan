@@ -1,0 +1,43 @@
+name: Temporary ASR model package
+
+on:
+  push:
+    branches:
+      - automation/temp-vosk-model-20260817
+
+permissions:
+  contents: read
+
+jobs:
+  package-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download and verify Chinese Vosk model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p models
+          curl -fL --retry 5 --retry-delay 3 \
+            "https://github.com/hcompany-kr/talksafe-models/releases/download/zh/vosk-model-small-cn-0.22.zip" \
+            -o models/vosk-model-small-cn-0.22.zip
+          echo "3af8b0e7e0f835ae9d414ce5df580237a3cfb08d586c9fbbb0f7ff29ad5b14ba  models/vosk-model-small-cn-0.22.zip" | sha256sum -c -
+          unzip -t models/vosk-model-small-cn-0.22.zip >/dev/null
+
+      - name: Download Whisper small multilingual model
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 5 --retry-delay 3 \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin" \
+            -o models/ggml-small-q5_1.bin
+          test "$(stat -c%s models/ggml-small-q5_1.bin)" -gt 100000000
+          sha256sum models/ggml-small-q5_1.bin > models/ggml-small-q5_1.bin.sha256
+
+      - name: Upload temporary model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporary-chinese-asr-models
+          path: models/
+          if-no-files-found: error
+          retention-days: 1
